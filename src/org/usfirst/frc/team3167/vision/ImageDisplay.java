@@ -55,7 +55,7 @@ public class ImageDisplay extends JPanel
 		}
 	}
 	
-	public void drawMatch(int x1, int y1, int x2, int y2)
+	public synchronized void drawMatch(int x1, int y1, int x2, int y2)
 	{		
 		this.x1 = x1;
 		this.y1 = y1;
@@ -69,7 +69,7 @@ public class ImageDisplay extends JPanel
 	}
 	
 	@Override
-	public void paintComponent(Graphics g)
+	public synchronized void paintComponent(Graphics g)
 	{
 		super.paintComponent(g);
 		g.drawImage(img1, 0, 0, null);

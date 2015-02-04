@@ -3,6 +3,7 @@ package org.usfirst.frc.team3167.vision;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -43,14 +44,14 @@ public class LogoTracker
 		templateKeypoints = new MatOfKeyPoint();
 		
 		display = new ImageDisplay("C:\\Users\\Owner\\Downloads\\FIRSTLogo.jpg",
-				"C:\\Users\\Owner\\Downloads\\sample1.jpg");
+				"C:\\Users\\Owner\\Downloads\\sample3.jpg");
 	}
 	
 	public static void main(String args[])
 	{
 		LogoTracker tracker = new LogoTracker();
 		tracker.train("C:\\Users\\Owner\\Downloads\\FIRSTLogo.jpg");
-		tracker.analyze("C:\\Users\\Owner\\Downloads\\sample1.jpg");
+		tracker.analyze("C:\\Users\\Owner\\Downloads\\sample3.jpg");
 	}
 	
 	public void train(String templatePath)
@@ -96,10 +97,10 @@ public class LogoTracker
 				}
 			});
 		
-		for(int i = 0; i < matchArray.length; i++)
+		/*for(int i = 0; i < matchArray.length; i++)
 		{
 			System.out.println(matchArray[i]);
-		}
+		}*/
 		
 		DMatch[] tmp = matchArray;
 		matchArray = new DMatch[30];
@@ -121,6 +122,8 @@ public class LogoTracker
 			
 			display.drawMatch(x1, y1, x2, y2);
 		}
+		
+		ArrayList<DMatch> bestMatches = new ArrayList<DMatch>();
 		
 	}
 	
