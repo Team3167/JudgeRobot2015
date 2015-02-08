@@ -49,7 +49,14 @@ public class MotionSubTask
 		RobotKinematics velCmd = posController.DoControl(posCmdGenerator.Update(), posEstimator.GetCurrentPosition());
 		
 		// I think we can do without the velocity controller here - let's start out that way, anyway
-		drive.Drive(velCmd.x, velCmd.y, velCmd.theta);
+		try
+		{
+			drive.Drive(velCmd.x, velCmd.y, velCmd.theta);
+		}
+		catch (Exception ex)
+		{
+			System.out.println("Failed to drive in MutionSubTask.Update:  " + ex.getMessage());
+		}
 	}
 	
 	protected boolean CloseToEndPosition(double errorLimit)

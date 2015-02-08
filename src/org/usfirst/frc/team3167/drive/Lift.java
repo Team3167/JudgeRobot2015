@@ -1,57 +1,32 @@
 package org.usfirst.frc.team3167.drive;
 
-import org.usfirst.frc.team3167.util.SecondOrderLimiter;
-import org.usfirst.frc.team3167.robot.RobotConfiguration;
+import edu.wpi.first.wpilibj.CANJaguar;
 
-public class Lift
+import org.usfirst.frc.team3167.util.DigitalSwitch;
+
+public class Lift extends BangBangAxis
 {
-	// TODO:  Implement
-	// We'll do position control (and speed control?)
-	// Need to have limit switch(es) so we know starting position
+	private static final double homingSpeed = 0.5;// [in/sec]
+	private static final double homingAccel = 0.5;// [in/sec^2]
+	private static final double normalSpeed = 4.0;// [in/sec]
+	private static final double normalAccel = 4.0;// [in/sec^2]
+	
+	private static final double positionTolerance = 0.2;// [in]
+	
+	private static final double encoderPositionScale = 1.0;// [in/encoder pulse] TODO:  Fix this
 	
 	private static final double bottom = 0;// [in]
 	private static final double aboveGroundTote = 0;// [in]
 	
-	private boolean isHomed;
-	private static final double homingSpeed = 0.5;// [in/sec]
-	private static final double homingAccel = 0.5;// [in/sec]
-	
-	private static final double normalSpeed = 2;// [in/sec]
-	private static final double normalAccel = 2;// [in/sec]
-	
-	private SecondOrderLimiter cmdGenerator;
-	
-	private double cmdPosition;
-	
-	public Lift()
+	public Lift(int canID, DigitalSwitch homeSwitch, double homeSwitchPosition)
 	{
-		// TODO:  Create the limit switch and encoder objects (or use CAN for encoder feedback?)
-		isHomed = false;
-		cmdGenerator = new SecondOrderLimiter(homingSpeed, homingAccel,
-				RobotConfiguration.frequency);
-		GoToPosition(-9999);// Something very far below our current position
+		super(new CANJaguar(canID), normalSpeed, normalAccel, homingSpeed, homingAccel, homeSwitch,
+				encoderPositionScale, homeSwitchPosition, positionTolerance, false);
 	}
 	
 	public void GoToPosition(double endPosition)
 	{
-		endPosition = cmdPosition;
-	}
-	
-	public void Update()
-	{
-		// TODO:  Implement
-		/*if (!isHomed && switch is depressed)
-		{
-			isHomed = true;
-			Reset encoder to bottom position
-			cmdGenerator = new SecondOrderLimiter(normalSpeed, normalAccel,
-				RobotConfiguration.frequency);
-			GoToPosition(bottom);
-		}*/
-		
-		cmdGenerator.Process(cmdPosition);// TODO:  Use this value to close the loops
-		
-		// TODO:  Close loops here
+		SetCmdPosition(endPosition);
 	}
 	
 	public boolean IsLifted()
@@ -62,6 +37,6 @@ public class Lift
 	
 	public double GetHeight()
 	{
-		return 0;// TODO:  Need to figure out what we want this to report -> what is the reference?  top of arm? bottom of tote?
+		return GetPosition();
 	}
 }

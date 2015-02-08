@@ -183,7 +183,7 @@ public class Matrix
 					"Error:  Matrix dimensions do not match!");
 
 		// Perform the addition
-		int row, col, i;
+		int row, col;
 		for (row = 0; row < result.rowCount; row++)
 		{
 			for (col = 0; col < result.colCount; col++)
@@ -217,7 +217,7 @@ public class Matrix
 					"Error:  Matrix dimensions do not match!");
 
 		// Perform the subtraction
-		int row, col, i;
+		int row, col;
 		for (row = 0; row < result.rowCount; row++)
 		{
 			for (col = 0; col < result.colCount; col++)
@@ -701,10 +701,10 @@ public class Matrix
         }
 
         // Some testing aids
-        Matrix IfromU = U.GetTranspose().Multiply(U);
+        /*Matrix IfromU = U.GetTranspose().Multiply(U);
         Matrix IfromV = V.GetTranspose().Multiply(V);
         Matrix IfromV2 = V.Multiply(V.GetTranspose());
-        Matrix originalAgain = U.Multiply(W).Multiply(V.GetTranspose());
+        Matrix originalAgain = U.Multiply(W).Multiply(V.GetTranspose());*/
 
         // Invert the components of W along the diagonal
         for (i = 0; i < W.colCount; i++)

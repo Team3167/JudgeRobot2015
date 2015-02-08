@@ -25,7 +25,7 @@ public class PiVision
 		currentData = data;
 	}
 	
-	public int getX()
+	/*public int getX()
 	{
 		// TODO: Interpret the data from the packet in order to extract the info it's sending
 	}
@@ -38,5 +38,5 @@ public class PiVision
 	public int getTheta()
 	{
 		// TODO: Interpret the data from the packet in order to extract the info it's sending
-	}
+	}*/
 }

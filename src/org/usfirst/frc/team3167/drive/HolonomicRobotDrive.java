@@ -10,15 +10,12 @@ package org.usfirst.frc.team3167.drive;
 
 // WPI imports
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.ADXL345_I2C;
 
 // Judge imports
 import org.usfirst.frc.team3167.util.Matrix;
 import org.usfirst.frc.team3167.util.SecondOrderLimiter;
-import org.usfirst.frc.team3167.util.PIDControllerII;
-import org.usfirst.frc.team3167.robot.RobotConfiguration;
-import judge.sensors.RateGyro;
-import judge.util.DSPlotDataBuffer;
+/*import judge.sensors.RateGyro;
+import judge.util.DSPlotDataBuffer;*/
 
 /**
  * Holonomic drive class for use with independently driven mecanum or omni
@@ -92,14 +89,14 @@ public class HolonomicRobotDrive
 	// Mark - I don't think this is where I would put this stuff.  We should separate the
 	// holonomic drive stuff from the robot velocity control stuff.  I would put this
 	// In the velocity control class a level up from this.
-	private PIDControllerII yawController = new PIDControllerII(
+	/*private PIDControllerII yawController = new PIDControllerII(
 			RobotConfiguration.yawKp,
 			RobotConfiguration.yawKi,
 			RobotConfiguration.yawQueueSize,
 			RobotConfiguration.frequency);
 	private RateGyro yawGyro = new RateGyro(
 			RobotConfiguration.analogInputModule,
-			RobotConfiguration.yawGyroChannel);
+			RobotConfiguration.yawGyroChannel);*/
 
     // Methods
     /**
@@ -107,14 +104,8 @@ public class HolonomicRobotDrive
 	 *
 	 * @param _freq					Fixed frequency at which this object must be
 	 * updated (and loops will be closed) [Hz]
-	 * @param digitalSideCarSlot	cRIO slot into which the digital sidecar is
-	 * connected (designed for all PWM outputs and encoder inputs to be handled
-	 * by the same digital sidecar)
-	 * @param analogInputSlot		cRIO slot into which the analog input module
-	 * handling the gyroscopes and the IR distance sensors is connected
 	 */
-    public HolonomicRobotDrive(double _freq, int digitalSideCarModule,
-			int analogInputModule)
+    public HolonomicRobotDrive(double _freq)
     {
         // Assign the running frequency
         freq = _freq;
@@ -141,279 +132,10 @@ public class HolonomicRobotDrive
 		navigator.CreateIRSensors(analogInputModule, leftFrontChan,
 				rightFrontChan, leftRearChan, rightRearChan);*/
     }
-
-    /**
-	 * Adds wheel to drive object using open-loop control.
-	 *
-	 * @param posX			X-location of the wheel [in]
-	 * @param posY			Y-location of the wheel [in]
-	 * @param axisX			X-component of unit vector describing the wheel's
-	 * axis of rotation (direction of this vector defines positive direction for
-	 * wheel rotation according to right hand rule)
-	 * @param axisY			Y-component of unit vector describing the wheel's
-	 * axis of rotation (direction of this vector defines positive direction for
-	 * wheel rotation according to right hand rule)
-	 * @param rollerAngle	Angle between vector defining the axis of rotation
-	 * and the rolling element in contact with the ground [deg]
-	 * @param radius		Radius of the wheel [in]
-	 * @param motorSlot		cRIO slot into which the digital sidecar sending the
-	 * PWM signal to the motor controller is connected
-	 * @param motorChannel	PWM channel on the digital sidecar to which the
-	 * motor controller is connected
-     * @param maxSpeed      Maximum speed achievable at this wheel [rad/sec]
-	 */
-    public void AddWheel(double posX, double posY, double axisX, double axisY,
-                double rollerAngle, double radius,
-                int motorSlot, int motorChannel, double maxSpeed)
+    
+    public void AddWheel(Wheel wheel)
     {
-        // Create the wheel object and add it to the array
-        Wheel newWheel = new Wheel(posX, posY, axisX, axisY, rollerAngle,
-                radius, motorSlot, motorChannel, maxSpeed);
-
-        wheelList.Add(newWheel);
-    }
-
-	/**
-	 * Adds a wheel to drive object using PI-control with integral saturation to
-	 * control windup.
-	 *
-	 * @param posX				X-location of the wheel [in]
-	 * @param posY				Y-location of the wheel [in]
-	 * @param axisX				X-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param axisY				Y-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param rollerAngle		Angle between vector defining the axis of
-	 * rotation and the rolling element in contact with the ground [deg]
-	 * @param radius			Radius of the wheel [in]
-	 * @param gearRatioWheel	Gear ratio between the wheel and the encoder
-	 * (not the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar sending
-	 * the PWM signal to the motor controller is connected
-	 * @param motorChannel		PWM channel on the digital sidecar to which the
-	 * motor controller is connected
-	 * @param maxSpeed			Maximum allowable speed of the wheel [rad/sec]
-	 * @param encSlotA			cRIO slot into which the digital sidecar reading
-	 * the encoder A channel is connected
-	 * @param encChanA			Digital input channel into which the encoder A
-	 * pulse signal is connected
-	 * @param encSlotB			cRIO slot into which the digital sidecar reading
-	 * the encoder B channel is connected
-	 * @param encChanB			Digital input channel into which the encoder B
-	 * pulse signal is connected
-	 * @param encPPR			Encoder pulses per revolution per channel
-	 * @param reverseEncoder	Flag indicating wheter or not the encoder's
-	 * positive direction should be swapped
-	 * @param kp				Proportional gain
-	 * @param ki				Integral gain
-	 * @param saturation		Maximum allowable magnitude of the integral of
-	 * the error signal
-	 * @param dFiltOmega		Cutoff frequency for the filter on the feedback
-	 * signal [Hz]
-	 * @param dFiltZeta			Damping ratio for the filter on the feedback
-	 * signal [-]
-	 */
-    public void AddWheel(double posX, double posY, double axisX, double axisY,
-                double rollerAngle, double radius, double gearRatioWheel,
-				int motorSlot, int motorChannel, double maxSpeed,
-                int encSlotA, int encChanA, int encSlotB, int encChanB,
-                int encPPR, boolean reverseEncoder, double kp, double ki,
-                double saturation, double dFiltOmega, double dFiltZeta)
-    {
-        // Create the wheel object and add it to the array
-        Wheel newWheel;
-		newWheel = new Wheel(posX, posY, axisX, axisY, rollerAngle,
-			radius, gearRatioWheel, motorSlot, motorChannel, maxSpeed,
-			kp, ki, saturation, dFiltOmega, dFiltZeta, freq,
-			encSlotA, encChanA, encSlotB, encChanB, encPPR, reverseEncoder);
-
-        wheelList.Add(newWheel);
-    }
-
-	/**
-	 * Adds a wheel to drive object using PI-control with a fixed number of
-	 * samples contributing to the integral of the error signal.
-	 *
-	 * @param posX				X-location of the wheel [in]
-	 * @param posY				Y-location of the wheel [in]
-	 * @param axisX				X-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param axisY				Y-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param rollerAngle		Angle between vector defining the axis of
-	 * rotation and the rolling element in contact with the ground [deg]
-	 * @param radius			Radius of the wheel [in]
-	 * @param gearRatioWheel	Gear ratio between the wheel and the encoder
-	 * (not the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar sending
-	 * the PWM signal to the motor controller is connected
-	 * @param motorChannel		PWM channel on the digital sidecar to which the
-	 * motor controller is connected
-	 * @param maxSpeed			Maximum allowable speed of the wheel [rad/sec]
-	 * @param encSlotA			cRIO slot into which the digital sidecar reading
-	 * the encoder A channel is connected
-	 * @param encChanA			Digital input channel into which the encoder A
-	 * pulse signal is connected
-	 * @param encSlotB			cRIO slot into which the digital sidecar reading
-	 * the encoder B channel is connected
-	 * @param encChanB			Digital input channel into which the encoder B
-	 * pulse signal is connected
-	 * @param encPPR			Encoder pulses per revolution per channel
-	 * @param reverseEncoder	Flag indicating wheter or not the encoder's
-	 * positive direction should be swapped
-	 * @param kp				Proportional gain
-	 * @param ki				Integral gain
-	 * @param queueSize			Number of error samples to include when
-	 * calculating the integral of the error signal [-]
-	 * @param dFiltOmega		Cutoff frequency for the filter on the feedback
-	 * signal [Hz]
-	 * @param dFiltZeta			Damping ratio for the filter on the feedback
-	 * signal [-]
-	 */
-    public void AddWheel(double posX, double posY, double axisX, double axisY,
-                double rollerAngle, double radius, double gearRatioWheel,
-				int motorSlot, int motorChannel, double maxSpeed,
-                int encSlotA, int encChanA, int encSlotB, int encChanB,
-                int encPPR, boolean reverseEncoder, double kp, double ki,
-                int queueSize, double dFiltOmega, double dFiltZeta)
-    {
-        // Create the wheel object and add it to the array
-        Wheel newWheel;
-		newWheel = new Wheel(posX, posY, axisX, axisY, rollerAngle,
-			radius, gearRatioWheel, motorSlot, motorChannel, maxSpeed,
-			kp, ki, queueSize, dFiltOmega, dFiltZeta, freq,
-			encSlotA, encChanA, encSlotB, encChanB, encPPR, reverseEncoder);
-
-        wheelList.Add(newWheel);
-    }
-
-	/**
-	 * Adds a wheel to the drive object using PID-control and limiting windup by
-	 * limiting the magnitude of the integral of the error signal.
-	 *
-	 * @param posX				X-location of the wheel [in]
-	 * @param posY				Y-location of the wheel [in]
-	 * @param axisX				X-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param axisY				Y-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param rollerAngle		Angle between vector defining the axis of
-	 * rotation and the rolling element in contact with the ground [deg]
-	 * @param radius			Radius of the wheel [in]
-	 * @param gearRatioWheel	Gear ratio between the wheel and the encoder
-	 * (not the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar sending
-	 * the PWM signal to the motor controller is connected
-	 * @param motorChannel		PWM channel on the digital sidecar to which the
-	 * motor controller is connected
-	 * @param maxSpeed			Maximum allowable speed of the wheel [rad/sec]
-	 * @param encSlotA			cRIO slot into which the digital sidecar reading
-	 * the encoder A channel is connected
-	 * @param encChanA			Digital input channel into which the encoder A
-	 * pulse signal is connected
-	 * @param encSlotB			cRIO slot into which the digital sidecar reading
-	 * the encoder B channel is connected
-	 * @param encChanB			Digital input channel into which the encoder B
-	 * pulse signal is connected
-	 * @param encPPR			Encoder pulses per revolution per channel
-	 * @param reverseEncoder	Flag indicating wheter or not the encoder's
-	 * positive direction should be swapped
-	 * @param kp				Proportional gain
-	 * @param ki				Integral gain
-	 * @param kd				Derivative gain
-	 * @param saturation		Maximum allowable magnitude of the integral of
-	 * the error signal
-	 * @param dFiltOmega		Cutoff frequency for the filter on the feedback
-	 * signal [Hz]
-	 * @param dFiltZeta			Damping ratio for the filter on the feedback
-	 * signal [-]
-	 */
-    public void AddWheel(double posX, double posY, double axisX, double axisY,
-                double rollerAngle, double radius, double gearRatioWheel,
-				int motorSlot, int motorChannel, double maxSpeed,
-                int encSlotA, int encChanA, int encSlotB, int encChanB,
-                int encPPR, boolean reverseEncoder,
-                double kp, double ki, double kd, double saturation,
-                double dFiltOmega, double dFiltZeta)
-    {
-        // Create the wheel object and add it to the array
-        Wheel newWheel;
-		newWheel = new Wheel(posX, posY, axisX, axisY, rollerAngle,
-			    radius, gearRatioWheel,
-				motorSlot, motorChannel,
-				kp, ki, kd, saturation, dFiltOmega, dFiltZeta, freq,
-				encSlotA, encChanA, encSlotB, encChanB, encPPR, reverseEncoder);
-
-        wheelList.Add(newWheel);
-    }
-
-	/**
-	 * Adds a wheel to the drive object using PID-control and limiting windup by
-	 * using a fixed number of error samples to calculate the integral of the
-	 * error signal.
-	 *
-	 * @param posX				X-location of the wheel [in]
-	 * @param posY				Y-location of the wheel [in]
-	 * @param axisX				X-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param axisY				Y-component of unit vector describing the
-	 * wheel's axis of rotation (direction of this vector defines positive
-	 * direction for wheel rotation according to right hand rule)
-	 * @param rollerAngle		Angle between vector defining the axis of
-	 * rotation and the rolling element in contact with the ground [deg]
-	 * @param radius			Radius of the wheel [in]
-	 * @param gearRatioWheel	Gear ratio between the wheel and the encoder
-	 * (not the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar sending
-	 * the PWM signal to the motor controller is connected
-	 * @param motorChannel		PWM channel on the digital sidecar to which the
-	 * motor controller is connected
-	 * @param maxSpeed			Maximum allowable speed of the wheel [rad/sec]
-	 * @param encSlotA			cRIO slot into which the digital sidecar reading
-	 * the encoder A channel is connected
-	 * @param encChanA			Digital input channel into which the encoder A
-	 * pulse signal is connected
-	 * @param encSlotB			cRIO slot into which the digital sidecar reading
-	 * the encoder B channel is connected
-	 * @param encChanB			Digital input channel into which the encoder B
-	 * pulse signal is connected
-	 * @param encPPR			Encoder pulses per revolution per channel
-	 * @param reverseEncoder	Flag indicating wheter or not the encoder's
-	 * positive direction should be swapped
-	 * @param kp				Proportional gain
-	 * @param ki				Integral gain
-	 * @param kd				Derivative gain
-	 * @param queueSize			Number of error samples to include when
-	 * calculating the integral of the error signal [-]
-	 * @param dFiltOmega		Cutoff frequency for the filter on the feedback
-	 * signal [Hz]
-	 * @param dFiltZeta			Damping ratio for the filter on the feedback
-	 * signal [-]
-	 */
-    public void AddWheel(double posX, double posY, double axisX, double axisY,
-                double rollerAngle, double radius, double gearRatioWheel,
-				int motorSlot, int motorChannel, double maxSpeed,
-                int encSlotA, int encChanA, int encSlotB, int encChanB,
-                int encPPR, boolean reverseEncoder,
-                double kp, double ki, double kd, int queueSize,
-				double dFiltOmega, double dFiltZeta)
-    {
-        // Create the wheel object and add it to the array
-        Wheel newWheel;
-		newWheel = new Wheel(posX, posY, axisX, axisY, rollerAngle,
-			    radius, gearRatioWheel,
-				motorSlot, motorChannel,
-				kp, ki, kd, queueSize, dFiltOmega, dFiltZeta, freq,
-				encSlotA, encChanA, encSlotB, encChanB, encPPR, reverseEncoder);
-
-        wheelList.Add(newWheel);
+    	wheelList.Add(wheel);
     }
 
 	/**
@@ -438,6 +160,9 @@ public class HolonomicRobotDrive
     {
         // Create the n x 3 robot matrix
         double robotArray[][] = new double[wheelList.Size()][3];
+        
+        System.out.println("Initializing holonomic drive object");
+        System.out.println("    Found " + wheelList.Size() + " wheels");
 
         int i;
         double beta;
@@ -480,6 +205,9 @@ public class HolonomicRobotDrive
             wheelSpeedLimiter[i] = new SecondOrderLimiter(
 					wheelList.Get(i).GetMaxRotationRate(), wheelMaxAccel, freq);
         }
+        
+        System.out.println("robotMatrix = ");
+        System.out.println(robotMatrix.Print());
 
         // If we have full column rank, we have enough constraints defined to
         // control the motion of the robot.
@@ -584,12 +312,13 @@ public class HolonomicRobotDrive
 	 * @param vX	Desired x-velocity of the robot [in/sec]
 	 * @param vY	Desired y-velocity of the robot [in/sec]
 	 * @param omega	Desired rotational velocity of the robot [rad/sec]
-	 *
-	 * @throws IllegalStateException
+     * @throws Exception 
 	 */
     public void Drive(double vX, double vY, double omega)
-            throws IllegalStateException
+            throws Exception
     {
+    	//System.out.println("Calling drive with [" + vX + ", " + vY + ", " + omega + "]");
+    	
         // Make sure we're ready to rock and roll
         if (!initialized)
             throw new IllegalStateException(
@@ -668,11 +397,10 @@ public class HolonomicRobotDrive
 	 * @param corX	X-location of the center-of-rotation [in]
 	 * @param corY	Y-location of the center-of-rotation [in]
 	 * @param omega	Desired rotation rate [rad/sec]
-	 *
-	 * @throws IllegalStateException
+     * @throws Exception 
 	 */
     public void DriveCoR(double corX, double corY, double omega)
-            throws IllegalStateException
+            throws Exception
     {
         // Transform into vX, Vy and omega with CoR = <0,0>
         Drive(omega * corY, -omega * corX, omega);
@@ -684,11 +412,10 @@ public class HolonomicRobotDrive
 	 *
 	 * @param stick	Joystick from which the X, Y and twist measurements are to
 	 * be read
-	 *
-	 * @throws IllegalStateException
+     * @throws Exception 
 	 */
     public void Drive(Joystick stick)
-            throws IllegalStateException
+            throws Exception
     {
 		// NOTE:  Added yaw control 2/23/2012 to help fix weight distribution
 		// problem.  Modifies yaw cmd prior to calculating wheel commands
@@ -710,11 +437,10 @@ public class HolonomicRobotDrive
 	 *
 	 * @param leftStick		Joystick in the operator's left hand
 	 * @param rightStick	Joystick in the operator's right hand
-	 *
-	 * @throws IllegalStateException
+     * @throws Exception 
 	 */
     public void Drive(Joystick leftStick, Joystick rightStick)
-            throws IllegalStateException
+            throws Exception
     {
 		// Compute the deadband-ed values from each stick
 		// Joystick X axis is left-right, positive right (no change necessary)

@@ -11,14 +11,17 @@
 package org.usfirst.frc.team3167.drive;
 
 // WPI imports
-import edu.wpi.first.wpilibj.MotorSafety;
-import edu.wpi.first.wpilibj.MotorSafetyHelper;
 import edu.wpi.first.wpilibj.Jaguar;
+import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.Encoder;
+//import edu.wpi.first.wpilibj.;
+
+
 
 // Judge imports
 import org.usfirst.frc.team3167.util.PIDControllerII;
 import org.usfirst.frc.team3167.util.SecondOrderFilter;
+import org.usfirst.frc.team3167.robot.RobotConfiguration;
 
 /**
  * Class representing the drivetrain from one motor to a wheel (or wheels).
@@ -30,11 +33,8 @@ import org.usfirst.frc.team3167.util.SecondOrderFilter;
  * 
  * @author K. Loux
  */
-public class Wheel implements MotorSafety
+public class Wheel
 {
-    // Fields
-	protected MotorSafetyHelper safetyHelper;
-
     // Type of controller to use for each wheel
     private static final byte CONTROL_OPEN_LOOP = 0;
     private static final byte CONTROL_CLOSED_LOOP = 1;
@@ -42,7 +42,7 @@ public class Wheel implements MotorSafety
     // Position of wheel center point in robot coordinates
     private final double posX, posY;// [length]
 
-    // Direction of axis pabout which the wheel rotates
+    // Direction of axis about which the wheel rotates
     private final double axisX, axisY;
 
     // Angle of rollers on wheel relative to the wheel's rotation axis
@@ -62,12 +62,13 @@ public class Wheel implements MotorSafety
 
     // The motor object
     private final Jaguar motor;
+    private final CANJaguar canMotor;
 
 	// Maximum allowable speed for this wheel
 	private final double maxRotationRate;// [rad/sec at the wheel]
 
     // The encoder object
-    private Encoder encoder;// TODO:  If we use CAN, this will change!
+    private Encoder encoder;
     private double wheelVelocity;// [rad/sec at the wheel]
 	private double lastPosition;// [rad]
 	private SecondOrderFilter rateFilter;
@@ -75,6 +76,60 @@ public class Wheel implements MotorSafety
 	private final double stoppedSpeedThreshold = 0.01;// [rad/sec]
 
     // Methods
+	/**
+	 * Open loop CAN constructor.
+	 *
+	 * @param _posX			X-position of the wheel [in]
+	 * @param _posY			Y-position of the wheel [in]
+	 * @param _axisX		X-component of axis of rotation unit vector (NOTE:
+	 * The direction of the axis of rotation defines the positive direction of
+	 * rotation for the wheel according to the Right Hand Rule) [-]
+	 * @param _axisY		Y-component of axis of rotation unit vector (NOTE:
+	 * The direction of the axis of rotation defines the positive direction of
+	 * rotation for the wheel according to the Right Hand Rule) [-]
+	 * @param _rollerAngle	Angle between the roller in contact with the ground
+	 * and the axis of rotation, sign given by Right Hand Rule [deg]
+	 * @param _radius		Radius of the wheel [in]
+     * @param maxSpeed      Maximum speed achievable for this wheel [rad/sec]
+     * @param canID			CAN node ID for the Jaguar
+	 */
+    public Wheel(double _posX, double _posY, double _axisX, double _axisY,
+            double _rollerAngle, double _radius,
+            double maxSpeed, int canID)
+    {
+        // Assign geometry variables
+        posX = _posX;
+        posY = _posY;
+        rollerAngle = _rollerAngle;
+        radius = _radius;
+
+        maxRotationRate = maxSpeed;
+
+        controlType = CONTROL_OPEN_LOOP;
+
+        // Normalize the axis direction before making the assignment
+        double axisMag = Math.sqrt(_axisX * _axisX + _axisY * _axisY);
+        axisX = _axisX / axisMag;
+        axisY = _axisY / axisMag;
+
+        // Create the motor object
+        canMotor = new CANJaguar(canID);
+        //canMotor.setPercentMode();
+        //canMotor.configNeutralMode(CANJaguar.NeutralMode.Brake);
+        //canMotor.setExpiration(0.1);
+        //canMotor.setSafetyEnabled(true);
+        //canMotor.enableControl();//??
+        
+        System.out.println("Configuring Open-Loop CAN Jaguar ID " + canID
+        		+ "; found FW version " + canMotor.getFirmwareVersion());
+
+		// Assign a nonsense values to unneeded final fields
+		freq = 0.0;
+		
+		motor = null;// Unused in this mode
+		encoder = null;// Unused in this mode
+    }
+    
 	/**
 	 * Open loop constructor.
 	 *
@@ -89,15 +144,13 @@ public class Wheel implements MotorSafety
 	 * @param _rollerAngle	Angle between the roller in contact with the ground
 	 * and the axis of rotation, sign given by Right Hand Rule [deg]
 	 * @param _radius		Radius of the wheel [in]
-	 * @param motorSlot		cRIO slot into which the digital sidecar is
-	 * connected
 	 * @param motorChannel	PWM channel on the digital sidecar into which the
 	 * Jaguar is connected
      * @param maxSpeed      Maximum speed achievable for this wheel [rad/sec]
 	 */
     public Wheel(double _posX, double _posY, double _axisX, double _axisY,
             double _rollerAngle, double _radius,
-            int motorSlot, int motorChannel, double maxSpeed)
+            int motorChannel, double maxSpeed)
     {
         // Assign geometry variables
         posX = _posX;
@@ -120,9 +173,68 @@ public class Wheel implements MotorSafety
 
 		// Assign a nonsense values to unneeded final fields
 		freq = 0.0;
+		
+		canMotor = null;// Unused in this mode
+    }
+    
+    /**
+	 * Closed-loop PI control CAN constructor, anti-windup handled by fixed integral
+	 * time.
+	 *
+	 * @param _posX				X-position of the wheel [in]
+	 * @param _posY				Y-position of the wheel [in]
+	 * @param _axisX			X-component of axis of rotation unit vector
+	 * (NOTE: The direction of the axis of rotation defines the positive
+	 * direction of rotation for the wheel according to the Right Hand Rule) [-]
+	 * @param _axisY			Y-component of axis of rotation unit vector
+	 * (NOTE: The direction of the axis of rotation defines the positive
+	 * direction of rotation for the wheel according to the Right Hand Rule) [-]
+	 * @param _rollerAngle		Angle between the roller in contact with the
+	 * ground and the axis of rotation, sign given by Right Hand Rule [deg]
+	 * @param _radius			Radius of the wheel [in]
+	 * @param gearRatio			Gear ratio between the wheel and the encoder
+	 * (not between the wheel and the motor) [encoder revs/wheel rev]
+	 * @param canID				CAN node ID
+	 * @param _maxRotationRate	Maximum rotation rate of the wheel (not the
+	 * motor, nor the encoder) [rad/sec]
+	 * @param Kp				Proportional gain
+	 * @param Ki				Integral gain
+	 * @param encPPR			Encoder pulses per revolution per channel
+	 */
+    public Wheel(double _posX, double _posY, double _axisX, double _axisY,
+            double _rollerAngle, double _radius, double gearRatio,
+			double _maxRotationRate, int canID,
+			double Kp, double Ki, int encPPR)
+    {
+        // Assign geometry variables
+        posX = _posX;
+        posY = _posY;
+        rollerAngle = _rollerAngle;
+        radius = _radius;
+		maxRotationRate = _maxRotationRate;
 
-		// Set up the motor safety object (watchdog stuff)
-		SetupMotorSafety();
+        controlType = CONTROL_CLOSED_LOOP;
+
+        // Normalize the axis direction before making the assignment
+        double axisMag = Math.sqrt(_axisX * _axisX + _axisY * _axisY);
+        axisX = _axisX / axisMag;
+        axisY = _axisY / axisMag;
+        
+        // Create the motor object
+        canMotor = new CANJaguar(canID);
+        System.out.println("Configuring Closed-Loop CAN Jaguar ID " + canID
+        		+ "; found FW version " + canMotor.getFirmwareVersion());
+        
+        canMotor.setSpeedMode(CANJaguar.kQuadEncoder, encPPR, Kp, Ki, 0);
+        //canMotor.setExpiration(0.1);
+        //canMotor.setSafetyEnabled(true);
+        canMotor.enableControl();
+
+		// Assign a nonsense values to unneeded final fields
+		freq = 0.0;
+		
+		motor = null;// Unused in this mode
+		encoder = null;// Unused in this mode
     }
 
 	/**
@@ -142,8 +254,6 @@ public class Wheel implements MotorSafety
 	 * @param _radius			Radius of the wheel [in]
 	 * @param gearRatio			Gear ratio between the wheel and the encoder
 	 * (not between the wheel and the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar is
-	 * connected
 	 * @param motorChannel		PWM channel on the digital sidecar into which
 	 * the Jaguar is connected
 	 * @param _maxRotationRate	Maximum rotation rate of the wheel (not the
@@ -169,7 +279,7 @@ public class Wheel implements MotorSafety
 	 */
     public Wheel(double _posX, double _posY, double _axisX, double _axisY,
             double _rollerAngle, double _radius, double gearRatio,
-			int motorSlot, int motorChannel, double _maxRotationRate,
+			int motorChannel, double _maxRotationRate,
 			double Kp, double Ki, int queueSize,
 			double omega, double zeta, double _freq,
             int encSlotA, int encChanA, int encSlotB, int encChanB,
@@ -208,8 +318,7 @@ public class Wheel implements MotorSafety
         // Create controller object
         controller = new PIDControllerII(Kp, Ki, queueSize, freq);
 
-		// Set up the motor safety object (watchdog stuff)
-		SetupMotorSafety();
+        canMotor = null;// Unused in this mode
     }
 
 	/**
@@ -229,8 +338,6 @@ public class Wheel implements MotorSafety
 	 * @param _radius			Radius of the wheel [in]
 	 * @param gearRatio			Gear ratio between the wheel and the encoder
 	 * (not between the wheel and the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar is
-	 * connected
 	 * @param motorChannel		PWM channel on the digital sidecar into which
 	 * the Jaguar is connected
 	 * @param _maxRotationRate	Maximum rotation rate of the wheel (not the
@@ -252,11 +359,11 @@ public class Wheel implements MotorSafety
 	 * pulse signal is connected
 	 * @param encPPR			Encoder pulses per revolution per channel
 	 * @param reverseEncoder	Flag indicating whether or not the positive
-	 * direction of the encoer should be swapped
+	 * direction of the encoder should be swapped
 	 */
     public Wheel(double _posX, double _posY, double _axisX, double _axisY,
             double _rollerAngle, double _radius, double gearRatio,
-			int motorSlot, int motorChannel, double _maxRotationRate,
+			int motorChannel, double _maxRotationRate,
 			double Kp, double Ki, double saturation,
 			double omega, double zeta, double _freq,
             int encSlotA, int encChanA, int encSlotB, int encChanB,
@@ -295,8 +402,7 @@ public class Wheel implements MotorSafety
         // Create controller object
         controller = new PIDControllerII(Kp, Ki, saturation, freq);
 
-		// Set up the motor safety object (watchdog stuff)
-		SetupMotorSafety();
+        canMotor = null;// Unused in this mode
     }
 
     /**
@@ -316,8 +422,6 @@ public class Wheel implements MotorSafety
 	 * @param _radius			Radius of the wheel [in]
 	 * @param gearRatio			Gear ratio between the wheel and the encoder
 	 * (not between the wheel and the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar is
-	 * connected
 	 * @param motorChannel		PWM channel on the digital sidecar into which
 	 * the Jaguar is connected
 	 * @param _maxRotationRate	Maximum rotation rate of the wheel (not the
@@ -344,7 +448,7 @@ public class Wheel implements MotorSafety
 	 */
     public Wheel(double _posX, double _posY, double _axisX, double _axisY,
             double _rollerAngle, double _radius, double gearRatio,
-			int motorSlot, int motorChannel, double _maxRotationRate,
+			int motorChannel, double _maxRotationRate,
             double Kp, double Ki, double Kd,
             int queueSize, double omega, double zeta, double _freq,
             int encSlotA, int encChanA, int encSlotB, int encChanB,
@@ -384,8 +488,7 @@ public class Wheel implements MotorSafety
         controller = new PIDControllerII(Kp, Ki, Kd,
                 queueSize, omega, zeta, freq);
 
-		// Set up the motor safety object (watchdog stuff)
-		SetupMotorSafety();
+        canMotor = null;// Unused in this mode
     }
 
 	/**
@@ -405,8 +508,6 @@ public class Wheel implements MotorSafety
 	 * @param _radius			Radius of the wheel [in]
 	 * @param gearRatio			Gear ratio between the wheel and the encoder
 	 * (not between the wheel and the motor) [encoder revs/wheel rev]
-	 * @param motorSlot			cRIO slot into which the digital sidecar is
-	 * connected
 	 * @param motorChannel		PWM channel on the digital sidecar into which
 	 * the Jaguar is connected
 	 * @param _maxRotationRate	Maximum rotation rate of the wheel (not the
@@ -433,7 +534,7 @@ public class Wheel implements MotorSafety
 	 */
     public Wheel(double _posX, double _posY, double _axisX, double _axisY,
             double _rollerAngle, double _radius, double gearRatio,
-			int motorSlot, int motorChannel, double _maxRotationRate,
+			int motorChannel, double _maxRotationRate,
             double Kp, double Ki, double Kd,
             double saturation, double omega, double zeta, double _freq,
             int encSlotA, int encChanA, int encSlotB, int encChanB,
@@ -473,8 +574,7 @@ public class Wheel implements MotorSafety
         controller = new PIDControllerII(Kp, Ki, Kd,
                 saturation, omega, zeta, freq);
 
-		// Set up the motor safety object (watchdog stuff)
-		SetupMotorSafety();
+        canMotor = null;// Unused in this mode
     }
 
 	/**
@@ -483,39 +583,60 @@ public class Wheel implements MotorSafety
 	 *
 	 * @param cmdOmega	Commanded wheel speed (not motor, nor encoder speed)
 	 * [rad/sec]
+	 * @throws Exception for cases of imporper configuration
 	 */
-    protected void DoControl(final double cmdOmega)
+    protected void DoControl(final double cmdOmega) throws Exception
     {
-        double motorPWMCmd;
+        double motorCmd;
 
         // Read from encoder, pass along cmd and feedback to the controller
         // The output is scaled by the maximum velocity so we get an input to
         // the PWM between -1 and 1.
-        if (controlType == CONTROL_CLOSED_LOOP)
+        if (controlType == CONTROL_CLOSED_LOOP && motor != null)
         {
 			double position = encoder.getDistance();// [rad at wheel]
             wheelVelocity = rateFilter.Apply((position - lastPosition) * freq);
             lastPosition = position;
-            motorPWMCmd = controller.DoControl(cmdOmega, wheelVelocity);
-            //motorPWMCmd = cmdOmega / maxRotationRate;// Uncomment for open loop
+            motorCmd = controller.DoControl(cmdOmega, wheelVelocity);
         }
         else
         {
             wheelVelocity = cmdOmega;
-            motorPWMCmd = cmdOmega / maxRotationRate;
+            motorCmd = cmdOmega / maxRotationRate;
         }
 
-        // Limit the command from -1.0 to 1.0
-        if (motorPWMCmd < -1.0)
-            motorPWMCmd = -1.0;
-        else if (motorPWMCmd > 1.0)
-            motorPWMCmd = 1.0;
-
-        // Issue the motor speed command
-        motor.set(motorPWMCmd);
-
-		// Feed the watchdog
-		safetyHelper.feed();
+        if (motor != null)
+        {
+	        // Limit the command from -1.0 to 1.0
+	        if (motorCmd < -1.0)
+	            motorCmd = -1.0;
+	        else if (motorCmd > 1.0)
+	            motorCmd = 1.0;
+	
+	        // Issue the motor speed command
+	        motor.set(motorCmd);
+        }
+        else if (canMotor != null)
+        {
+        	if (controlType == CONTROL_OPEN_LOOP)
+        		canMotor.set(motorCmd);//, RobotConfiguration.wheelCANSyncGroup);
+        	else if (controlType == CONTROL_CLOSED_LOOP)
+        	{
+        		try
+        		{
+        			wheelVelocity = canMotor.getSpeed();// TODO:  We'll likely need some kind of scaling here
+        			canMotor.set(cmdOmega, RobotConfiguration.wheelCANSyncGroup);// TODO:  We'll likely need some kind of scaling here
+        		}
+        		catch (Exception ex)
+        		{
+        			System.out.println("Failed to set CAN motor speed:  " + ex.toString());
+        		}
+        	}
+        	else
+        		throw new Exception("Incorrect control mode set in Wheel.DoControl");
+        }
+        else
+        	throw new Exception("Failed to find motor object in Wheel.DoControl");
     }
 
 	/**
@@ -649,44 +770,6 @@ public class Wheel implements MotorSafety
 
 		return false;
 	}
-
-	// Required overloads for MotorSafety interface ============================
-	public void setExpiration(double timeout)
-	{
-        safetyHelper.setExpiration(timeout);
-    }
-
-    public double getExpiration()
-	{
-        return safetyHelper.getExpiration();
-    }
-
-    public boolean isAlive()
-	{
-        return safetyHelper.isAlive();
-    }
-
-    public boolean isSafetyEnabled()
-	{
-        return safetyHelper.isSafetyEnabled();
-    }
-
-    public void setSafetyEnabled(boolean enabled)
-	{
-        safetyHelper.setSafetyEnabled(enabled);
-    }
-
-    public void stopMotor()
-	{
-		motor.set(0.0);
-    }
-
-	private void SetupMotorSafety()
-	{
-        safetyHelper = new MotorSafetyHelper(this);
-        safetyHelper.setExpiration(MotorSafety.DEFAULT_SAFETY_EXPIRATION);
-        safetyHelper.setSafetyEnabled(true);
-    }
     
     public String getDescription()
     {

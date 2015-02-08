@@ -1,0 +1,8 @@
+"Gotchas" experienced with setting up CAN on the black Jags:
+- Hard to find BDC-COMM utility - included in this repo
+- Hard to find proper firmware version (eventually found this and the BDC-COMM utility on a VEX robotics page - don't try searching for FRC + Jaguar + CANbus)
+- Need to use a straight-through 6-conductor cable to communicate with the PC for configuration.  Store-bought cables are cross-over, you need to crimp your own end on to correct this.  You need 6P4C connectors when using CAN on the robot after configuration is done, but 6P6C for initial configuration and firmware update.
+- When setting the CAN node IDs, you need to click the assign button in the BDC-COMM utility, then within 5 seconds use a paper clip to press the "User" button on the Jaguar in order for the change to take.
+- Colors of our cables don't always match the docs.  The important this is that pin 3 = CAN_HI and pin 4 = CAN_LO (using pin numbers of the 6P6C connectors)
+
+The pdfs in this folder were the most helpful when trying to figure all of this out.
