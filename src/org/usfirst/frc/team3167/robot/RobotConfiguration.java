@@ -42,4 +42,12 @@ public class RobotConfiguration
 	// Lift geometry
 	public static final double narrowHomeSwitchHeight = 10;// [in]
 	public static final double wideHomeSwitchHeight = 10;// [in]
+	
+	// Networking info
+	public static final int pythonPort = 15000;
+	public static final int javaPort = 16000;
+	
+	// Python execution info
+	public static final String pythonCommandLinux = "python";
+	public static final String pythonFilePath = "\\home\\lvuser\\RobotPositionEstimator.py";
 } 
